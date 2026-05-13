@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Absensi Mobile Kampus</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#4e54c8,#8f94fb);
+    padding:20px;
+}
+
+/* WRAPPER */
+.container{
+    width:100%;
+    max-width:450px;
+    background:white;
+    border-radius:30px;
+    padding:30px;
+    box-shadow:0 15px 40px rgba(0,0,0,0.2);
+    text-align:center;
+}
+
+/* LOGO */
+.logo{
+    width:50px;
+    height:50px;
+    border-radius:14px;
+    object-fit:cover;
+    margin-bottom:18px;
+}
+
+/* TITLE */
+h3{
+    color:#4e54c8;
+    font-size:30px;
+    margin-bottom:8px;
+}
+
+.subtitle{
+    color:#666;
+    margin-bottom:25px;
+    font-size:15px;
+}
+
+/* WARNING */
+.warning{
+    background:#fff4f4;
+    color:#e53935;
+    padding:14px;
+    border-radius:14px;
+    font-size:13px;
+    margin-bottom:20px;
+    line-height:1.5;
+    border:1px solid #ffcdd2;
+}
+
+/* VIDEO */
+.video-box{
+    overflow:hidden;
+    border-radius:24px;
+    border:4px solid #dcdfff;
+    background:black;
+}
+
+video{
+    width:100%;
+    display:block;
+    transform:scaleX(-1);
+}
+
+/* INFO */
+.info{
+    margin-top:20px;
+    background:#f7f8ff;
+    padding:18px;
+    border-radius:18px;
+    text-align:left;
+    line-height:1.9;
+    font-size:14px;
+    color:#555;
+}
+
+.info strong{
+    color:#4e54c8;
+}
+
+/* CLOCK */
+.clock-box{
+    margin-top:20px;
+    text-align:center;
+}
+
+#clock{
+    font-size:34px;
+    font-weight:bold;
+    color:#4e54c8;
+}
+
+#date{
+    margin-top:6px;
+    font-size:14px;
+    color:#666;
+}
+
+/* BUTTON */
+button{
+    width:100%;
+    margin-top:25px;
+    padding:15px;
+    border:none;
+    border-radius:16px;
+    background:linear-gradient(135deg,#4e54c8,#8f94fb);
+    color:white;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.3s;
+    box-shadow:0 10px 20px rgba(78,84,200,0.3);
+}
+
+button:hover{
+    transform:translateY(-2px);
+}
+
+button:disabled{
+    background:#cfcfcf;
+    box-shadow:none;
+    cursor:not-allowed;
+}
+
+/* CANVAS */
+canvas{
+    display:none;
+}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+
+    .container{
+        padding:25px 20px;
+    }
+
+    h3{
+        font-size:24px;
+    }
+
+    #clock{
+        font-size:28px;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- LOGO -->
+    <img src="ran.png" class="logo" alt="Logo">
+
+    <!-- TITLE -->
+    <h3>Absensi Kehadiran</h3>
+
+    <p class="subtitle">
+        Sistem Absensi Mobile Kampus
+    </p>
+
+    <!-- WARNING -->
+    <div class="warning">
+        PENTING: Pastikan latar belakang foto memperlihatkan
+        ruangan kelas sesuai jadwal kuliah.
+    </div>
+
+    <!-- VIDEO -->
+    <div class="video-box">
+
+        <video id="video" autoplay playsinline></video>
+
+    </div>
+
+    <!-- INFO -->
+    <div class="info">
+
+        <strong>Status Lokasi:</strong>
+        <span id="locationStatus">Mencari...</span>
+
+        <br>
+
+        <strong>Koordinat:</strong>
+        <span id="coords">-</span>
+
+        <br>
+
+        <strong>Status GPS:</strong>
+        <span id="gpsStatus">Memeriksa...</span>
+
+    </div>
+
+    <!-- CLOCK -->
+    <div class="clock-box">
+
+        <div id="clock"></div>
+
+        <div id="date"></div>
+
+    </div>
+
+    <!-- BUTTON -->
+    <button id="btnAbsen" disabled>
+        📸 Ambil Foto & Absen
+    </button>
+
+    <canvas id="canvas"></canvas>
+
+</div>
+
+<script>
+
+const video = document.getElementById('video');
+const btnAbsen = document.getElementById('btnAbsen');
+const locationStatus = document.getElementById('locationStatus');
+const coordsText = document.getElementById('coords');
+
+/* =========================
+   KAMERA
+========================= */
+
+async function setupCamera() {
+
+    try {
+
+        const stream =
+        await navigator.mediaDevices.getUserMedia({
+
+            video: {
+                facingMode: "user"
+            },
+
+            audio: false
+        });
+
+        video.srcObject = stream;
+
+    } catch (err) {
+
+        alert(
+            "Gagal mengakses kamera: " +
+            err.message
+        );
+    }
+}
+
+/* =========================
+   GPS + DETEKSI
+========================= */
+
+function getLocation() {
+
+    const gpsStatus =
+    document.getElementById("gpsStatus");
+
+    if (navigator.geolocation) {
+
+        navigator.geolocation.getCurrentPosition(
+
+            (position) => {
+
+                const lat =
+                position.coords.latitude;
+
+                const lon =
+                position.coords.longitude;
+
+                const accuracy =
+                position.coords.accuracy;
+
+                const speed =
+                position.coords.speed;
+
+                /* TAMPILKAN KOORDINAT */
+                locationStatus.innerText =
+                "Lokasi Terdeteksi";
+
+                locationStatus.style.color =
+                "green";
+
+                coordsText.innerText =
+                `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+                /* CEK DEVICE MOBILE */
+                const isMobile =
+                /Android|iPhone|iPad|iPod/i
+                .test(navigator.userAgent);
+
+                /* DETEKSI INDIKASI GPS */
+                let suspicious = false;
+
+                if(isMobile){
+
+                    /* SPEED TIDAK WAJAR */
+                    if(speed && speed > 300){
+                        suspicious = true;
+                    }
+
+                    /* AKURASI TIDAK WAJAR */
+                    if(accuracy > 1000){
+                        suspicious = true;
+                    }
+                }
+
+                /* STATUS */
+                if(suspicious){
+
+                    gpsStatus.innerText =
+                    "GPS mencurigakan";
+
+                    gpsStatus.style.color =
+                    "orange";
+
+                }else{
+
+                    gpsStatus.innerText =
+                    "GPS Valid";
+
+                    gpsStatus.style.color =
+                    "green";
+                }
+
+                /* TOMBOL AKTIF */
+                btnAbsen.disabled = false;
+            },
+
+            (error) => {
+
+                locationStatus.innerText =
+                "Gagal mendapatkan lokasi";
+
+                locationStatus.style.color =
+                "red";
+
+                gpsStatus.innerText =
+                "GPS Error";
+
+                gpsStatus.style.color =
+                "red";
+
+                console.error(error);
+            },
+
+            {
+                enableHighAccuracy:true,
+                timeout:10000,
+                maximumAge:0
+            }
+        );
+
+    } else {
+
+        locationStatus.innerText =
+        "GPS tidak didukung browser ini";
+    }
+}
+
+/* =========================
+   ABSEN
+========================= */
+
+btnAbsen.addEventListener('click', () => {
+
+    const canvas =
+    document.getElementById('canvas');
+
+    canvas.width = video.videoWidth;
+
+    canvas.height = video.videoHeight;
+
+    const context =
+    canvas.getContext('2d');
+
+    /* CAPTURE */
+    context.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    /* DATA */
+    const dataAbsen = {
+
+        foto:
+        canvas.toDataURL('image/png'),
+
+        lokasi:
+        coordsText.innerText,
+
+        waktu:
+        new Date().toLocaleString()
+    };
+
+    console.log(
+        "Data Absensi Terkirim:",
+        dataAbsen
+    );
+
+    /* AUTO DOWNLOAD FOTO */
+    const link =
+    document.createElement('a');
+
+    link.href =
+    canvas.toDataURL('image/png');
+
+    link.download =
+    `absensi-${Date.now()}.png`;
+
+    link.click();
+
+    /* ALERT */
+    alert(
+        "Absen Berhasil!\n\n" +
+        "Foto berhasil disimpan ke perangkat."
+    );
+});
+
+/* =========================
+   JAM REALTIME
+========================= */
+
+function updateClock(){
+
+    const now = new Date();
+
+    const jam =
+    String(now.getHours()).padStart(2,'0');
+
+    const menit =
+    String(now.getMinutes()).padStart(2,'0');
+
+    const detik =
+    String(now.getSeconds()).padStart(2,'0');
+
+    const waktu =
+    `${jam}:${menit}:${detik}`;
+
+    const tanggal =
+    now.toLocaleDateString(
+        'id-ID',
+        {
+            weekday:'long',
+            year:'numeric',
+            month:'long',
+            day:'numeric'
+        }
+    );
+
+    document.getElementById("clock")
+    .innerText = waktu;
+
+    document.getElementById("date")
+    .innerText = tanggal;
+}
+
+setInterval(updateClock,1000);
+
+updateClock();
+
+/* INIT */
+setupCamera();
+getLocation();
+
+</script>
+
+</body>
+</html>
